@@ -4,6 +4,7 @@
  * “Task #0 – {iteration number}”.
  */
 using System;
+using System.Threading.Tasks;
 
 namespace MultiThreading.Task1._100Tasks
 {
@@ -22,12 +23,34 @@ namespace MultiThreading.Task1._100Tasks
             
             HundredTasks();
 
+            Console.WriteLine("End");
             Console.ReadLine();
         }
 
         static void HundredTasks()
         {
-            // feel free to add your code here
+            var tasks = new Task[TaskAmount];
+
+            for (var i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = Task.Run(() =>
+                {
+                    OneTask(i);
+                    Console.WriteLine($"Task{i} finished");
+                });
+
+                Task.Delay(500).Wait();
+            }
+
+            Task.WhenAll(tasks);
+        }
+
+        static void OneTask(int taskNumber)
+        {
+            for (var i = 1; i <= MaxIterationsCount; i++)
+            {
+                Output(taskNumber, i);
+            }
         }
 
         static void Output(int taskNumber, int iterationNumber)
