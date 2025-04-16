@@ -6,7 +6,7 @@
  */
 using System;
 
-namespace MultiThreading.Task5.Threads.SharedCollection
+namespace MT.Task5.Threads.SharedCollection
 {
     class Program
     {
