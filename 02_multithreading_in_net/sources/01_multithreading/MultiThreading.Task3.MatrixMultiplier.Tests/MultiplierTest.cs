@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MultiThreading.Task3.MatrixMultiplier.Matrices;
 using MultiThreading.Task3.MatrixMultiplier.Multipliers;
@@ -15,11 +16,57 @@ namespace MultiThreading.Task3.MatrixMultiplier.Tests
             TestMatrix3On3(new MatricesMultiplierParallel());
         }
 
+        /// <summary>
+        /// Best array size is 30.
+        /// </summary>
         [TestMethod]
         public void ParallelEfficiencyTest()
         {
-            // todo: implement a test method to check the size of the matrix which makes parallel multiplication more effective than
-            // todo: the regular one
+            int[] matrixSizes = { 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 140, 150, 160, 170, 180, 190, 200 };
+
+            TimeSpan bestTimeMatricesMultiplier = TimeSpan.MaxValue;
+            TimeSpan bestTimeMatricesMultiplierParallel = TimeSpan.MaxValue;
+            int bestSizeMatricesMultiplier = 0;
+            int bestSizeMatricesMultiplierParallel = 0;
+
+            foreach (var size in matrixSizes)
+            {
+                var matricesMultiplier = new MatricesMultiplier();
+                var matricesMultiplierParallel = new MatricesMultiplierParallel();
+
+                var data = SeedData(size);
+                var firstMatrix = data.firstMatrix;
+                var secondMatrix = data.secondMatrix;
+
+                var stopwatch = Stopwatch.StartNew();
+                matricesMultiplier.Multiply(firstMatrix, secondMatrix);
+                stopwatch.Stop();
+                var matricesMultiplierTime = stopwatch.Elapsed;
+
+                if (matricesMultiplierTime < bestTimeMatricesMultiplier)
+                {
+                    bestTimeMatricesMultiplier = matricesMultiplierTime;
+                    bestSizeMatricesMultiplier = size;
+                }
+
+                stopwatch.Restart();
+                matricesMultiplierParallel.Multiply(firstMatrix, secondMatrix);
+                stopwatch.Stop();
+                var matricesMultiplierParallelTime = stopwatch.Elapsed;
+
+                if (matricesMultiplierParallelTime < bestTimeMatricesMultiplierParallel)
+                {
+                    bestTimeMatricesMultiplierParallel = matricesMultiplierParallelTime;
+                    bestSizeMatricesMultiplierParallel = size;
+                }
+
+                Console.WriteLine($"Matrix Size: {size}, MatricesMultiplier Time: {matricesMultiplierTime.TotalMilliseconds} ms, MatricesMultiplierParallel Time: {matricesMultiplierParallelTime.TotalMilliseconds} ms");
+            }
+
+            Console.WriteLine($"Best Array Size for MatricesMultiplier: {bestSizeMatricesMultiplier} with Time: {bestTimeMatricesMultiplier.TotalMilliseconds} ms");
+            Console.WriteLine($"Best Array Size for MatricesMultiplierParallel: {bestSizeMatricesMultiplierParallel} with Time: {bestTimeMatricesMultiplierParallel.TotalMilliseconds} ms");
+
+            Assert.IsTrue(bestTimeMatricesMultiplierParallel < bestTimeMatricesMultiplier, "It was not possible to find the effective matrix size which makes parallel multiplication more effective than the regular one.");
         }
 
         #region private methods
@@ -71,6 +118,26 @@ namespace MultiThreading.Task3.MatrixMultiplier.Tests
             Assert.AreEqual(728, multiplied.GetElement(2, 2));
         }
 
+        (Matrix firstMatrix, Matrix secondMatrix) SeedData(int matrixSize)
+        {
+            var firstMatrix = new Matrix(matrixSize, matrixSize);
+            var secondMatrix = new Matrix(matrixSize, matrixSize);
+
+            var random = new Random();
+            for (var i = 0; i < matrixSize; i++)
+            {
+                for (var j = 0; j < matrixSize; j++)
+                {
+                    var randomValue = (int)random.Next(-100, 100);
+                    firstMatrix.SetElement(i, j, randomValue);
+
+                    randomValue = (int)random.Next(-100, 100);
+                    secondMatrix.SetElement(i, j, randomValue);
+                }
+            }
+
+            return (firstMatrix, secondMatrix);
+        }
         #endregion
     }
 }

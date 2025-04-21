@@ -30,12 +30,32 @@ namespace MultiThreading.Task3.MatrixMultiplier
             var firstMatrix = new Matrix(sizeOfMatrix, sizeOfMatrix);
             var secondMatrix = new Matrix(sizeOfMatrix, sizeOfMatrix);
 
+            var random = new Random();
+            for (var i = 0; i < sizeOfMatrix; i++)
+            {
+                for (var j = 0; j < sizeOfMatrix; j++)
+                {
+                    var randomValue = (int)random.Next(-100, 100);
+                    firstMatrix.SetElement(i, j, randomValue);
+
+                    randomValue = (int)random.Next(-100, 100);
+                    secondMatrix.SetElement(i, j, randomValue);
+                }
+            }
+
             IMatrix resultMatrix = new MatricesMultiplier().Multiply(firstMatrix, secondMatrix);
 
             Console.WriteLine("firstMatrix:");
             firstMatrix.Print();
             Console.WriteLine("secondMatrix:");
             secondMatrix.Print();
+            Console.WriteLine("resultMatrix:");
+            resultMatrix.Print();
+
+
+            Console.WriteLine("Multiplying Parallel...");
+            IMatrix resultMatrixParallel = new MatricesMultiplierParallel().Multiply(firstMatrix, secondMatrix);
+
             Console.WriteLine("resultMatrix:");
             resultMatrix.Print();
         }
