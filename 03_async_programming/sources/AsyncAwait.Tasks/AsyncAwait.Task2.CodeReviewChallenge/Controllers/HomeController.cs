@@ -27,7 +27,9 @@ public class HomeController : Controller
 
     public ActionResult Privacy()
     {
-        ViewBag.Message = _privacyDataService.GetPrivacyDataAsync().Result;
+        ViewBag.Message = _privacyDataService.GetPrivacyData();
+        //ViewBag.Message = await _privacyDataService.GetPrivacyDataAsync();
+        //ViewBag.Message = _privacyDataService.GetPrivacyDataAsync().Result;
         return View();
     }
 
