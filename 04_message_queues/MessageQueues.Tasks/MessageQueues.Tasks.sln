@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessageQueue.DataCaptureService", "MessageQueue.DataCaptureService\MessageQueue.DataCaptureService.csproj", "{86282E09-AFE4-48D2-93E3-FF285C9023B5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessageQueue.MainProcessingService", "MessageQueue.MainProcessingService\MessageQueue.MainProcessingService.csproj", "{A801EDDC-3991-4B9F-9B2A-C0879D02EF1D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessageQueue.DataCaptureService_2", "MessageQueue.DataCaptureService_2\MessageQueue.DataCaptureService_2.csproj", "{BD85658F-8C30-41A0-8176-ACCDE8341BB2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Diagrams", "Diagrams", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\..\..\Downloads\Task_3.1_Diagram.png = ..\..\..\..\..\Downloads\Task_3.1_Diagram.png
+		..\..\..\..\..\Desktop\Task_3.2_Component Diagram.png = ..\..\..\..\..\Desktop\Task_3.2_Component Diagram.png
+		..\..\..\..\..\Downloads\Task_3.2_Sequence Diagram.png = ..\..\..\..\..\Downloads\Task_3.2_Sequence Diagram.png
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86282E09-AFE4-48D2-93E3-FF285C9023B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86282E09-AFE4-48D2-93E3-FF285C9023B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86282E09-AFE4-48D2-93E3-FF285C9023B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86282E09-AFE4-48D2-93E3-FF285C9023B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A801EDDC-3991-4B9F-9B2A-C0879D02EF1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A801EDDC-3991-4B9F-9B2A-C0879D02EF1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A801EDDC-3991-4B9F-9B2A-C0879D02EF1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A801EDDC-3991-4B9F-9B2A-C0879D02EF1D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD85658F-8C30-41A0-8176-ACCDE8341BB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD85658F-8C30-41A0-8176-ACCDE8341BB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD85658F-8C30-41A0-8176-ACCDE8341BB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD85658F-8C30-41A0-8176-ACCDE8341BB2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E682017D-1781-4C6E-BBF0-6C913F6320C4}
+	EndGlobalSection
+EndGlobal
