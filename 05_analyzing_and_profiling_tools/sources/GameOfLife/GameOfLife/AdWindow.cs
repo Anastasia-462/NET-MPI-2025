@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -10,13 +11,16 @@ namespace GameOfLife
     class AdWindow : Window
     {
         private readonly DispatcherTimer adTimer;
+        private readonly ImageBrush myBrush = new ImageBrush();
+        private readonly BitmapImage[] preloadedImages;
+        private string[] adImages = new string[] { "ad1.jpg", "ad2.jpg", "ad3.jpg" };
+
         private int imgNmb;     // the number of the image currently shown
         private string link;    // the URL where the currently shown ad leads to
-        
-    
+
         public AdWindow(Window owner)
         {
-            Random rnd = new Random();
+            var rnd = new Random();
             Owner = owner;
             Width = 350;
             Height = 100;
@@ -26,8 +30,21 @@ namespace GameOfLife
             Cursor = Cursors.Hand;
             ShowActivated = false;
             MouseDown += OnClick;
-            
+
             imgNmb = rnd.Next(1, 3);
+
+            preloadedImages = new BitmapImage[adImages.Length];
+
+            for (int i = 0; i < adImages.Length; i++)
+            {
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.UriSource = new Uri(adImages[i], UriKind.Relative);
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                preloadedImages[i] = bitmapImage;
+            }
+
             ChangeAds(this, new EventArgs());
 
             // Run the timer that changes the ad's image 
@@ -45,41 +62,34 @@ namespace GameOfLife
         
         protected override void OnClosed(EventArgs e)
         {
-            //Unsubscribe();
+            Unsubscribe();
             base.OnClosed(e);
         } 
 
         public void Unsubscribe()
         {
+            adTimer.Stop();
             adTimer.Tick -= ChangeAds;
+            MouseDown -= OnClick;
         }
 
         private void ChangeAds(object sender, EventArgs eventArgs)
         {
-            
-            ImageBrush myBrush = new ImageBrush();
-            
+            Background = myBrush;
+            link = "http://example.com";
+
             switch (imgNmb)
             {
                 case 1:
-                    myBrush.ImageSource =
-                        new BitmapImage(new Uri("ad1.jpg", UriKind.Relative));
-                    Background = myBrush;
-                    link = "http://example.com";
+                    myBrush.ImageSource = preloadedImages[0];
                     imgNmb++;
                     break;
                 case 2:
-                    myBrush.ImageSource =
-                        new BitmapImage(new Uri("ad2.jpg", UriKind.Relative));
-                    Background = myBrush;
-                    link = "http://example.com";
+                    myBrush.ImageSource = preloadedImages[1];
                     imgNmb++;
                     break;
                 case 3:
-                    myBrush.ImageSource =
-                        new BitmapImage(new Uri("ad3.jpg", UriKind.Relative));
-                    Background = myBrush;
-                    link = "http://example.com";
+                    myBrush.ImageSource = preloadedImages[2];
                     imgNmb = 1;
                     break;
             }

@@ -1,8 +1,4 @@
-﻿using System.Windows;
-using System.Windows.Media;
-using System.Windows.Shapes;
-
-namespace GameOfLife
+﻿namespace GameOfLife
 {
     class Cell
     {
@@ -12,14 +8,18 @@ namespace GameOfLife
 
         public bool IsAlive { get; set; }
 
-
         public Cell(int row, int column, int age, bool alive)
         {
             PositionX = row * 5;
             PositionY = column * 5;
             Age = age;
             IsAlive = alive;
-            
+        }
+
+        public void Reset()
+        {
+            Age = 0;
+            IsAlive = false;
         }
     }
 }
