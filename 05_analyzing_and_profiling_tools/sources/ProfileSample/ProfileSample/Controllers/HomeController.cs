@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using ProfileSample.DAL;
@@ -15,8 +17,21 @@ namespace ProfileSample.Controllers
         {
             var context = new ProfileSampleEntities();
 
+            var sources = context.ImgSources.Take(20).Select(x => new ImageModel
+            {
+                Name = x.Name,
+                Data = x.Data
+            }).ToList();
+
+            return View(sources);
+        }
+
+        public ActionResult About()
+        {
+            var context = new ProfileSampleEntities();
+
             var sources = context.ImgSources.Take(20).Select(x => x.Id);
-            
+
             var model = new List<ImageModel>();
 
             foreach (var id in sources)
@@ -30,7 +45,7 @@ namespace ProfileSample.Controllers
                 };
 
                 model.Add(obj);
-            } 
+            }
 
             return View(model);
         }
