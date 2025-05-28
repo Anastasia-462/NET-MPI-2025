@@ -1,0 +1,720 @@
+using ComplexTask_LINQ.Database;
+using ComplexTask_LINQ.DbModels;
+using ComplexTask_LINQ.Services;
+using ComplexTask_LINQ.Test;
+using Dapper;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ComplexTask_LINQ.Provider.CustomProvider
+{
+    public class CustomQueryProvider : ICustomQueryProvider
+    {
+        private readonly IPgDatabaseConnection _dbConnection;
+
+        public CustomQueryProvider(IPgDatabaseConnection dbConnection)
+        {
+            _dbConnection = dbConnection;
+            Console.WriteLine($"[CustomQueryProvider] dbConnection: {_dbConnection.GetType().FullName}");
+            //var services = new ServiceCollection();
+            //services.AddSingleton<IPgDatabaseConnection, PgDatabaseConnection>();
+            //services.AddSingleton<ICustomQueryProvider, CustomQueryProvider>();
+            //services.AddTransient<SearchService>();
+
+            //var serviceProvider = services.BuildServiceProvider();
+
+            //var searchService = serviceProvider.GetRequiredService<SearchService>();
+            //var customQueryProvider = serviceProvider.GetRequiredService<ICustomQueryProvider>();
+            //var dbConnection1 = serviceProvider.GetRequiredService<IPgDatabaseConnection>();
+        }
+
+        public IQueryable CreateQuery(Expression expression)
+        {
+            // Определяем тип элементов, с которыми будет работать запрос
+            Type elementType = TypeSystem.GetElementType(expression.Type);
+
+            // Создаем тип CustomQueryable<T>, где T — это elementType
+            Type queryableType = typeof(CustomQueryable<>).MakeGenericType(elementType);
+            return (IQueryable)Activator.CreateInstance(queryableType, this, expression)!;
+        }
+
+        public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
+        {
+            return new CustomQueryable<TElement>(this, expression);
+        }
+
+        public object Execute(Expression expression)
+        {
+            // Трансляция выражения и выполнение
+            return Execute<object>(expression);
+        }
+
+        //public IEnumerable<TResult> Execute<TResult>(Expression expression)
+        //{
+        //    //// Вызываем TranslateAndExecute с указанием типа результата (TResult)
+        //    //if (typeof(TResult).IsGenericType && typeof(TResult).GetGenericTypeDefinition() == typeof(IEnumerable<>))
+        //    //{
+        //    //    // Переводим и возвращаем результат как последовательность
+        //    //    return (TResult)(object)TranslateAndExecute<TResult>(expression);
+        //    //}
+        //    //else
+        //    //{
+        //    //    // Если TResult НЕ IEnumerable<T>, то это одиночный результат
+        //    //    // Выполняем TranslateAndExecute для перечисления, а затем берем первый элемент
+        //    //    var result = TranslateAndExecute<TResult>(expression).Cast<object>().FirstOrDefault();
+        //    //    return (TResult)result;
+        //    //}
+
+        //    if (typeof(TResult).IsGenericType &&
+        //            typeof(TResult).GetGenericTypeDefinition() == typeof(IEnumerable<>))
+        //    {
+        //        // Загружаем данные через TranslateAndExecute (они уже IEnumerable<T>)
+        //        var result = TranslateAndExecute<TResult>(expression);
+
+        //        // Возвращаем результат напрямую: никакого приведения типа!
+        //        return result;
+        //    }
+
+        //    // Если TResult — одиночное значение, извлекаем первый объект из коллекции
+        //    var singleResult = TranslateAndExecute<TResult>(expression).FirstOrDefault();
+        //    return (TResult)(object)singleResult;
+        //}
+
+        public TResult Execute<TResult>(Expression expression)
+        {
+            Console.WriteLine($"[CustomQueryProvider] Executing Expression: {expression}");
+
+            var t = TranslateAndExecute<TResult>(expression).FirstOrDefault();
+            return t;
+            //// 1. Определяем, ожидается ли коллекция
+            //if (typeof(TResult).IsGenericType &&
+            //    typeof(TResult).GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            //{
+            //    // Генерируем и выполняем запрос, получая данные как IEnumerable<T>
+            //    var enumerableResult = TranslateAndExecute<TResult>(expression);
+
+            //    // Убеждаемся, что возвращаем именно коллекцию
+            //    return ForceCastToIEnumerable<TResult>(enumerableResult);
+            //}
+
+            //// 2. Если ожидается одиночный объект
+            //var queryResult = TranslateAndExecute<TResult>(expression);
+
+            //// Извлекаем первый элемент из коллекции
+            //var singleResult = queryResult.Cast<object>().FirstOrDefault();
+
+            //// Приводим к TResult
+            //return (TResult)singleResult;
+        }
+
+        private IEnumerable<T> TranslateAndExecute<T>(Expression expression)
+        {
+            // Используем QueryTranslator для преобразования дерева выражений в SQL
+            var translator = new QueryTranslator();
+            string query = translator.Translate<T>(expression);
+
+            return ExecuteQuery<T>(query);
+        }
+
+        private IEnumerable<T> ExecuteQuery<T>(string query)
+        {
+            var result = _dbConnection.ExecuteQuery<T>(query);
+
+            if (result is IEnumerable<T>[] enumerableArray)
+            {
+                return enumerableArray.SelectMany(x => x);
+            }
+
+            var s = result is IEnumerable<T>[];
+            var m = result is IEnumerable<T>;
+            return result;
+        }
+
+        public IQueryable<T> GetQueryable<T>()
+        {
+            // Создаем CustomQueryable, привязанный к текущему провайдеру
+            return new CustomQueryable<T>(this);
+        }
+
+        private TResult ForceCastToIEnumerable<TResult>(IEnumerable<TResult> enumerableResult)
+        {
+            // Преобразуем результат вручную, чтобы вернуть коллекцию как TResult
+            Type itemType = typeof(TResult).GetGenericArguments()[0]; // Тип элемента T в IEnumerable<T>
+            var castMethod = typeof(Enumerable)
+                .GetMethod("Cast", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
+                ?.MakeGenericMethod(itemType);
+
+            var toListMethod = typeof(Enumerable)
+                .GetMethod("ToList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
+                ?.MakeGenericMethod(itemType);
+
+            // Применяем Cast<T> и ToList<T>, чтобы получить результирующую коллекцию
+            var castedEnumerable = castMethod?.Invoke(null, new object[] { enumerableResult });
+            var resultList = toListMethod?.Invoke(null, new object[] { castedEnumerable });
+
+            return (TResult)resultList;
+        }
+    }
+}
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ComplexTask_LINQ.Provider
+{
+    public class CustomQueryable<T> : IQueryable<T>
+    {
+        private readonly Expression _expression;
+        private readonly IQueryProvider _provider;
+
+        public CustomQueryable(IQueryProvider provider)
+        {
+            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            _expression = Expression.Constant(new List<T>().AsQueryable());
+        }
+
+        public CustomQueryable(IQueryProvider provider, Expression expression)
+        {
+            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            _expression = expression ?? throw new ArgumentNullException(nameof(expression));
+        }
+
+        public Type ElementType => typeof(T);
+
+        public Expression Expression => _expression;
+
+        public IQueryProvider Provider => _provider;
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            // Выполнение выражения через провайдер
+            return _provider.Execute<IEnumerable<T>>(_expression).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public override string ToString()
+        {
+            // Перевод запроса в SQL
+            var queryTranslator = new QueryTranslator();
+            return queryTranslator.Translate<T>(_expression); // Возвращаем сгенерированный SQL
+        }
+    }
+}
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ComplexTask_LINQ.Provider
+{
+    public class QueryTranslator : ExpressionVisitor
+    {
+        private StringBuilder _queryBuilder;
+        private string _tableName;
+        private List<string> _selectFields = new(); // Список полей для SELECT
+        private List<string> _joins = new(); // Список JOIN-условий
+
+        public QueryTranslator()
+        {
+            _queryBuilder = new StringBuilder();
+        }
+
+        public string Translate<T>(Expression expression)
+        {
+            _tableName = typeof(T).GenericTypeArguments.Length > 0
+             ? typeof(T).GenericTypeArguments[0].Name + "s" // Если использованы GenericArguments
+             : typeof(T).Name + "s";
+
+            // Начать обход дерева выражений
+            Visit(expression);
+
+            // Собираем финальный запрос
+            var query = new StringBuilder();
+
+            // Если есть SELECT-поля
+            if (_selectFields.Any())
+            {
+                query.Append($"SELECT {string.Join(", ", _selectFields)} FROM {_tableName} ");
+            }
+            else
+            {
+                query.Append($"SELECT * FROM {_tableName} ");
+            }
+
+            if (_joins.Any())
+            {
+                query.Append(string.Join(" ", _joins));
+            }
+
+            // Добавляем остальные фильтры и условия
+            query.Append(_queryBuilder.ToString());
+
+            return query.ToString();
+        }
+
+        protected override Expression VisitMethodCall(MethodCallExpression node)
+        {
+            if (node.Method.DeclaringType == typeof(Queryable))
+            {
+                if (node.Method.Name == "Where")
+                {
+                    _queryBuilder.Append("WHERE ");
+                    Visit(node.Arguments[1]); // Условие
+                    return node;
+                }
+                if (node.Method.Name == "Select")
+                {
+                    // Нам нужно обработать поля выборки
+                    var lambda = (LambdaExpression)((UnaryExpression)node.Arguments[1]).Operand;
+
+                    // Добавляем выбранные поля в список SELECT
+                    var body = lambda.Body as NewExpression;
+                    if (body != null)
+                    {
+                        foreach (var member in body.Members)
+                        {
+                            _selectFields.Add(member.Name);
+                        }
+                    }
+                    else
+                    {
+                        _selectFields.Add(lambda.Body.ToString());
+                    }
+
+                    // SELECT добавляется в Translate
+                    return node;
+                }
+
+                // Обработка Join
+                if (node.Method.Name == "Join")
+                {
+                    ProcessJoin(node);
+                    return node;
+                }
+            }
+
+            throw new NotSupportedException($"Метод {node.Method.Name} не поддерживается.");
+        }
+
+        private void ProcessJoin(MethodCallExpression node)
+        {
+            var t = node.Arguments[2].GetType().Name;
+
+            // Получаем имя члена для внешнего (outer) ключа
+            //var outerTable = GetMemberName(outerKeySelector);
+            //// Получаем имя члена для внутреннего (inner) ключа
+            //var innerTable = GetMemberName(innerKeySelector);
+
+            Expression outerKeySelector = node.Arguments[2]; // 3-й аргумент Join - внешний ключ
+            Expression innerKeySelector = node.Arguments[3]; // 4-й аргумент Join - внутренний ключ
+
+            // Извлекаем имя ключа (например, "Id") из двух выражений
+            var outerKey = ExtractMemberName(outerKeySelector);
+            var innerKey = ExtractMemberName(innerKeySelector);
+            var joinCondition = $"{outerKey} = {innerKey}";
+
+            _joins.Add($"JOIN {_tableName} ON {joinCondition}");
+        }
+        private string GetMemberName(Expression expression)
+        {
+            // Возможно, потребуется проверка на LambdaExpression
+            if (expression is LambdaExpression lambdaExpression)
+            {
+                // Извлекаем тело лямбды (например, x => x.Id)
+                var body = lambdaExpression.Body;
+
+                // Проверяем тип тела выражения
+                if (body is MemberExpression memberExpression)
+                {
+                    return memberExpression.Member.Name;
+                }
+
+                throw new NotSupportedException($"Не удалось обработать выражение: {body}");
+            }
+
+            // В случаях, когда expression не LambdaExpression
+            else if (expression is UnaryExpression unaryExpression && unaryExpression.Operand is MemberExpression memberExpression)
+            {
+                return memberExpression.Member.Name;
+            }
+
+            throw new NotSupportedException($"Не удалось обработать выражение: {expression}");
+        }
+
+        private string ExtractMemberName(Expression expression)
+        {
+            // Разворачиваем дерево выражений
+            if (expression is UnaryExpression unaryExpression) // Обёрнутые (например, Convert(...))
+            {
+                expression = unaryExpression.Operand; // Раскрываем UnaryExpression
+            }
+
+            if (expression is LambdaExpression lambdaExpression) // Лямбда-выражение, например, `book => book.Id`
+            {
+                var body = lambdaExpression.Body;
+                return ExtractMemberName(body); // Рекурсивно обрабатываем тело лямбды
+            }
+
+            if (expression is MemberExpression memberExpression) // Простое обращение к члену объекта (например, `book.Id`)
+            {
+                return memberExpression.Member.Name; // Возвращаем имя колонки
+            }
+
+            if (expression is ParameterExpression parameterExpression) // Работа с параметрами, если это необходимо
+            {
+                return parameterExpression.Name; // Например, имя параметра
+            }
+
+            // Если ничего из вышеуказанного не подошло — ошибка
+            throw new NotSupportedException($"Неизвестный тип выражения: {expression.GetType().Name}");
+        }
+        protected override Expression VisitLambda<T>(Expression<T> node)
+        {
+            Visit(node.Body);
+            return node;
+        }
+
+        protected override Expression VisitBinary(BinaryExpression node)
+        {
+            Visit(node.Left);
+            _queryBuilder.Append($" {GetSqlOperator(node.NodeType)} ");
+            Visit(node.Right);
+            return node;
+        }
+
+        protected override Expression VisitConstant(ConstantExpression node)
+        {
+            // Если значение - строка, оборачиваем кавычками
+            //if (node.Type == typeof(string))
+            //{
+            //    _queryBuilder.Append($"'{node.Value}'");
+            //}
+            //else
+            //{
+            //    _queryBuilder.Append(node.Value);
+            //}
+            //return node;
+
+            if (node.Type == typeof(string)) // Если это строка, добавляем кавычки
+            {
+                _queryBuilder.Append($"'{node.Value}'");
+            }
+            else if (node.Type.IsPrimitive || node.Type == typeof(decimal)) // Для простых типов (int, double и т.д.)
+            {
+                _queryBuilder.Append(node.Value);
+            }
+            else if (node.Value is IQueryable) // Для IQueryable ничего не делаем, пропускаем
+            {
+                return node;
+            }
+            else // Для других значений
+            {
+                var queryableConstant = node.Value;
+                _queryBuilder.Append(queryableConstant.ToString());
+            }
+            return node;
+        }
+
+        protected override Expression VisitMember(MemberExpression node)
+        {
+            if (node.Expression is ConstantExpression constantExpression)
+            {
+                var fieldInfo = node.Member as System.Reflection.FieldInfo;
+                var propertyInfo = node.Member as System.Reflection.PropertyInfo;
+
+                object container = constantExpression.Value;
+                object? value = fieldInfo?.GetValue(container) ?? propertyInfo?.GetValue(container);
+
+                if (value is string) // Если значение — строка, оборачиваем в кавычки
+                {
+                    _queryBuilder.Append($"'{value}'");
+                }
+                else
+                {
+                    _queryBuilder.Append(value); // Для других типов добавляем значение напрямую
+                }
+
+                return node;
+            }
+
+            // Если это что-то другое, возвращаем просто имя
+            _queryBuilder.Append(node.Member.Name);
+            return node;
+        }
+
+        private string GetSqlOperator(ExpressionType type)
+        {
+            return type switch
+            {
+                ExpressionType.Equal => "=",
+                ExpressionType.GreaterThan => ">",
+                ExpressionType.LessThan => "<",
+                ExpressionType.AndAlso => "AND",
+                ExpressionType.OrElse => "OR",
+                _ => throw new NotSupportedException($"Оператор {type} не поддерживается.")
+            };
+        }
+    }
+}
+
+
+using ComplexTask_LINQ.DbModels;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ComplexTask_LINQ.Context
+{
+    public class TaskDbContext : DbContext
+    {
+        public DbSet<Book> Books { get; set; }
+
+        public DbSet<Reader> Readers { get; set; }
+
+        public DbSet<ReadersTiket> ReadersTikets { get; set; }
+
+        public DbSet<Feedback> Feedbacks { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseNpgsql("connectionString");
+        }
+    }
+}
+
+
+// See https://aka.ms/new-console-template for more information
+using ComplexTask_LINQ.Database;
+using ComplexTask_LINQ.DbModels;
+using ComplexTask_LINQ.Models;
+using ComplexTask_LINQ.Provider.CustomProvider;
+using ComplexTask_LINQ.Services;
+using ComplexTask_LINQ.Test;
+using Microsoft.Extensions.DependencyInjection;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        // 1. Создаем коллекцию сервисов
+        var services = new ServiceCollection();
+
+        // 2. Конфигурируем DI-контейнер
+        ConfigureServices(services);
+
+        // 3. Создаем провайдер сервисов
+        var serviceProvider = services.BuildServiceProvider();
+
+        // 4. Получаем сервис и запускаем логику
+        var searchService = serviceProvider.GetRequiredService<SearchService>();
+
+        var books = searchService.SearchBooks(10.0, 50.0);
+        Console.WriteLine($"Books found: {books.Count}");
+    }
+
+    private static void ConfigureServices(ServiceCollection services)
+    {
+        services.AddSingleton<IPgDatabaseConnection>(_ =>
+            new PgDatabaseConnection("YourConnectionStringHere"));
+
+        services.AddSingleton<ICustomQueryProvider, CustomQueryProvider>();
+
+        services.AddTransient<SearchService>();
+    }
+}
+//Console.WriteLine("Hello, World!");
+
+
+//var connectionString = "Host=localhost;Port=5432;Database=mydb;Username=myuser;Password=mypassword";
+//var databaseConnection = new PgDatabaseConnection(connectionString);
+//var provider = new CustomQueryProvider(databaseConnection);
+
+//var books = new CustomQueryable<Book>(provider);
+
+//// Пример LINQ-запроса
+//var query = books.Where(book => book.Author == "John");
+
+//foreach (var book in query)
+//{
+//    Console.WriteLine($"Title: {book.Name}, Author: {book.Author}");
+//}
+
+
+using ComplexTask_LINQ.DbModels;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace ComplexTask_LINQ.Test.Fakes
+{
+    //public class FakeDbConnection : IPgDatabaseConnection
+    //{
+    //    private readonly Dictionary<string, object> _fakeData;
+
+    //    public FakeDbConnection()
+    //    {
+    //        _fakeData = new Dictionary<string, object>
+    //        {
+    //            // Ключ — это ваш запрос (или условное имя), значение — коллекция подходящего типа
+    //            {
+    //                "SELECT * FROM Books ", new Book[]
+    //                {
+    //                    new Book { Id = 1, Name = "C# in Depth", Cost = 20, Author = "Jon Skeet" },
+    //                    new Book { Id = 2, Name = "Effective C#", Cost = 10, Author = "Bill Wagner" },
+    //                    new Book { Id = 2, Name = "C#", Cost = 30, Author = "Bill Wagner" },
+    //                }
+    //            }
+    //        };
+    //    }
+
+    //    public IEnumerable<T> ExecuteQuery<T>(string query)
+    //    {
+    //        var t = _fakeData.GetValueOrDefault(query);
+    //        if (_fakeData.TryGetValue(query, out var result))// && result is IEnumerable<T> fakeResult)
+    //        {
+    //            var i = result is IEnumerable<T>;
+    //            var s = result.GetType();
+    //            return null;
+    //        }
+
+    //        return null;
+    //    }
+    //}
+    public class FakeDatabaseConnection<T> : IPgDatabaseConnection
+    {
+        private readonly IEnumerable<IEnumerable<T>> _data;
+
+        public FakeDatabaseConnection(IEnumerable<IEnumerable<T>> data)
+        {
+            _data = data;
+        }
+
+        public IEnumerable<T> ExecuteQuery<T>(string query)
+        {
+            return _data.Cast<T>().ToList();
+        }
+
+        //public IEnumerable<T> ExecuteQuery<T>(string query)
+        //{
+        //    var t = _data.GetType();
+        //    var s = typeof(T);
+
+        //    IEnumerable<T> tr = _data.Cast<T>();
+        //    var tw = tr.GetType();
+        //    object obj = _data;
+        //    Type itemType = typeof(Book);
+        //    var castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(itemType);
+        //    var enumerable = castMethod.Invoke(null, new object[] { obj });
+        //    return enumerable;
+        //}
+
+        //public IEnumerable<T> ExecuteQuery<T>(string query)
+        //{
+        //    Type targetType = typeof(T);
+
+        //    // Если T является IEnumerable<SomeType>, извлекаем SomeType
+        //    if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+        //    {
+        //        Type itemType = targetType.GetGenericArguments()[0];
+
+        //        if (_data.TryGetValue(itemType, out var rawData))
+        //        {
+        //            // Приводим элементы к itemType и затем к IEnumerable<T>
+        //            var castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(itemType);
+        //            var castedData = castMethod.Invoke(null, new object[] { rawData });
+
+        //            var toListMethod = typeof(Enumerable).GetMethod("ToList").MakeGenericMethod(itemType);
+        //            var list = toListMethod.Invoke(null, new object[] { castedData });
+
+        //            return (IEnumerable<T>)list;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        if (_data.TryGetValue(targetType, out var rawData))
+        //        {
+        //            return rawData.Cast<T>();
+        //        }
+        //    }
+
+        //    throw new InvalidOperationException($"Данные для типа {targetType.Name} не найдены.");
+        //}
+
+        /// <summary>
+        /// Выполняет запрос и преобразует данные в требуемый тип T
+        /// </summary>
+        //public IEnumerable<T> ExecuteQuery<T>(string query)
+        //{
+        //    var baseType = typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(IEnumerable<>)
+        //                    ? typeof(T).GetGenericArguments()[0]
+        //                    : typeof(T);
+
+        //    Console.WriteLine($"ExecuteQuery: Ищем данные для типа {baseType.Name}");
+
+        //    if (_data.TryGetValue(baseType, out var rawData))
+        //    {
+        //        return ForceCastToEnumerable<T>(rawData);
+        //    }
+
+        //    throw new InvalidOperationException($"Данные для типа {baseType.Name} не найдены.");
+        //}
+
+        private IEnumerable<T> ForceCastToEnumerable<T>(IEnumerable<object> rawData)
+        {
+            if (rawData == null)
+            {
+                throw new InvalidOperationException("rawData равно null или пуста.");
+            }
+
+            var targetType = typeof(T);
+
+            // Если T — это IEnumerable<SomeType>
+            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                var itemType = targetType.GetGenericArguments()[0];
+
+                var castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(itemType);
+                var toListMethod = typeof(Enumerable).GetMethod("ToList").MakeGenericMethod(itemType);
+
+                var casted = castMethod.Invoke(null, new object[] { rawData });
+                var list = toListMethod.Invoke(null, new object[] { casted });
+
+                return (IEnumerable<T>)list;
+            }
+            else
+            {
+                // Если T — это отдельный тип, например, Book
+                return rawData
+                    .Where(obj => obj != null && targetType.IsAssignableFrom(obj.GetType()))
+                    .Select(obj => (T)obj)
+                    .ToList();
+            }
+        }
+    }
+}
