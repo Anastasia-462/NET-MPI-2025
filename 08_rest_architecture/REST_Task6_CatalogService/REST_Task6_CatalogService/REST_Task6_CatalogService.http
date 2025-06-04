@@ -1,0 +1,6 @@
+@REST_Task6_CatalogService_HostAddress = http://localhost:5227
+
+GET {{REST_Task6_CatalogService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
