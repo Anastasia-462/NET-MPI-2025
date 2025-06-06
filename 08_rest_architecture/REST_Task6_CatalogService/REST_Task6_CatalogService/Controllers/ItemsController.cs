@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using REST_Task6_CatalogService;
 using REST_Task6_CatalogService.Controllers.Models;
@@ -9,6 +11,7 @@ using REST_Task6_CatalogService.Services.Items;
 namespace REST_Task6_CatalogService.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("[controller]")]
     public class ItemsController : ControllerBase
     {

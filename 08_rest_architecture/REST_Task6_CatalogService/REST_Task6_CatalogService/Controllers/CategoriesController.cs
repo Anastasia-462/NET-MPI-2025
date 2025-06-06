@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using REST_Task6_CatalogService.Controllers.Models;
 using REST_Task6_CatalogService.Models;
 using REST_Task6_CatalogService.Services.Categories;
@@ -19,12 +21,14 @@ namespace REST_Task6_CatalogService.Controllers
         }
 
         [HttpGet]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public IActionResult GetCategories()
         {
             return Ok(_categoryProcessor.GetListCategories());
         }
 
         [HttpPost]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public IActionResult AddCategory([FromBody] CategoryRequest category)
         {
             _categoryProcessor.AddCategory(category);
